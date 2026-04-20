@@ -2,6 +2,7 @@
 {
     public class Exhibit
     {
+        public int Id { get; set; }
         private Artwork _artwork;
         private Funds _funds;
         private Placement _placement;

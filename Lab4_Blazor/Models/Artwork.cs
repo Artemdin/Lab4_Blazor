@@ -2,6 +2,7 @@
 {
     public class Artwork
     {
+        public int Id { get; set; }
         private string _title;
         private int _creationYear;
         private double _height;

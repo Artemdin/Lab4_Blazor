@@ -2,6 +2,7 @@
 {
     public class Funds
     {
+        public int Id { get; set; }
         private string _title; 
         private string _address;
 

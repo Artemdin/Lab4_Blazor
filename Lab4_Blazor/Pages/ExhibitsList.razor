@@ -10,22 +10,22 @@
 </div>
 
 <div class="list-group mb-3">
-    @if (!Service.Hall.Exhibits.Any())
+    @if (exhibits == null || !exhibits.Any())
     {
-        <p class="text-muted">Експонати ще не додані.</p>
+        <p class="text-muted">Експонати ще не додані або завантажуються...</p>
     }
     else
     {
-        @foreach (var exhibit in Service.Hall.Exhibits)
+        @foreach (var exhibit in exhibits)
         {
             <button type="button"
                     @onclick="() => SelectExhibit(exhibit)"
                     class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active" : "")">
                 <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">@exhibit.Artwork.Title</h5>
+                    <h5 class="mb-1">@exhibit.Artwork?.Title</h5>
                     <small>@exhibit.Cost.ToString("N2") грн</small>
                 </div>
-                <p class="mb-1">Фонд: @exhibit.Funds.Title | Рік: @exhibit.Artwork.CreationYear</p>
+                <p class="mb-1">Фонд: @exhibit.Funds?.Title | Рік: @exhibit.Artwork?.CreationYear</p>
                 <small>Розміщення: @exhibit.Placement</small>
             </button>
         }
@@ -34,7 +34,6 @@
 
 <div class="mt-3">
     <button class="btn btn-success" @onclick="Add">Додати</button>
-
     <button class="btn btn-primary" @onclick="Edit" disabled="@(selectedExhibit == null)">Редагувати</button>
 </div>
 
@@ -45,10 +44,23 @@
              OnCancel="() => showModal = false" />
 
 @code {
+    private List<Exhibit> exhibits = new();
     private Exhibit? selectedExhibit;
     private bool showModal = false;
     private string modalTitle = "";
     private ExhibitDTO editingDto = new();
+
+    // Викликається автоматично при завантаженні сторінки
+    protected override void OnInitialized()
+    {
+        RefreshData();
+    }
+
+    private void RefreshData()
+    {
+        // Отримуємо актуальні дані з SQLite
+        exhibits = Service.GetExhibits();
+    }
 
     private void SelectExhibit(Exhibit exhibit)
     {
@@ -58,7 +70,7 @@
     private void Add()
     {
         modalTitle = "Додати новий експонат";
-        editingDto = new ExhibitDTO(); 
+        editingDto = new ExhibitDTO();
         showModal = true;
     }
 
@@ -85,10 +97,9 @@
         showModal = true;
     }
 
-    // Метод, який викликається при натисканні "Зберегти" у формі 
     private void HandleSave(ExhibitDTO dto)
     {
-        // Перетворюємо DTO назад у не-GUI об'єкти з валідацією 
+        // Створюємо об'єкти моделей на основі DTO
         var artwork = new Artwork
         {
             Title = dto.Artwork.Title,
@@ -98,22 +109,26 @@
             Depth = dto.Artwork.Depth
         };
         var funds = new Funds { Title = dto.Funds.Title };
-        var exhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
 
         if (modalTitle.Contains("Додати"))
         {
-            Service.SaveExhibit(exhibit);
+            var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
+            Service.SaveExhibit(newExhibit);
         }
         else if (selectedExhibit != null)
         {
-            // Оновлюємо існуючий об'єкт
+            // Оновлюємо існуючий об'єкт у базі
             selectedExhibit.Artwork = artwork;
             selectedExhibit.Funds = funds;
             selectedExhibit.Placement = dto.Placement;
             selectedExhibit.Cost = dto.Cost;
+
+            // Викликаємо збереження змін у контексті БД
+            Service.UpdateExhibit(selectedExhibit);
         }
 
+        RefreshData(); // Оновлюємо список на екрані
         showModal = false;
-        selectedExhibit = null; // Скидаємо вибір
+        selectedExhibit = null;
     }
 }
