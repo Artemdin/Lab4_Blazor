@@ -1,0 +1,74 @@
+﻿@using Lab4_Blazor.Models
+@using Lab4_Blazor.DTOs
+
+@if (Show)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5)" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button" class="btn-close" @onclick="Cancel"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@Model" OnValidSubmit="Save">
+                        <DataAnnotationsValidator />
+
+                        <h6>Витвір мистецтва</h6>
+                        <div class="mb-2">
+                            <label>Назва:</label>
+                            <InputText @bind-Value="Model.Artwork.Title" class="form-control" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Рік створення:</label>
+                            <InputNumber @bind-Value="Model.Artwork.CreationYear" class="form-control" />
+                        </div>
+
+                        <h6>Фонди</h6>
+                        <div class="mb-2">
+                            <label>Назва фонду:</label>
+                            <InputText @bind-Value="Model.Funds.Title" class="form-control" />
+                        </div>
+
+                        <h6>Параметри експонату</h6>
+                        <div class="mb-2">
+                            <label>Розміщення:</label>
+                            <InputSelect @bind-Value="Model.Placement" class="form-control">
+                                @foreach (var p in Enum.GetValues<Placement>())
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="mb-2">
+                            <label>Вартість:</label>
+                            <InputNumber @bind-Value="Model.Cost" class="form-control" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Зберегти і закрити</button>
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel">Скасувати</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Title { get; set; } = "Експонат";
+    [Parameter] public ExhibitDTO Model { get; set; } = new();
+    [Parameter] public EventCallback<ExhibitDTO> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task Save() => await OnSave.InvokeAsync(Model);
+    private async Task Cancel()
+    {
+        if (true) 
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}
