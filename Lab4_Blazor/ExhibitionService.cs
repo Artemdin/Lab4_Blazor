@@ -31,7 +31,15 @@ namespace Lab4_Blazor.Services
             _exhibits.Add(exhibit);
             await _localStorage.SetItemAsync("museum_data", _exhibits);
         }
-
+        public async Task DeleteExhibit(int id)
+        {
+            var exhibit = _exhibits.FirstOrDefault(e => e.Id == id);
+            if (exhibit != null)
+            {
+                _exhibits.Remove(exhibit);
+                await _localStorage.SetItemAsync("museum_data", _exhibits);
+            }
+        }
         public async Task UpdateExhibit(Exhibit exhibit)
         {
             var index = _exhibits.FindIndex(e => e.Id == exhibit.Id);

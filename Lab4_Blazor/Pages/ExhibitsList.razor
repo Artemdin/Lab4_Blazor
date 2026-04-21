@@ -3,6 +3,7 @@
 @using Lab4_Blazor.DTOs
 @using Lab4_Blazor.Services
 @inject ExhibitionService Service
+@inject IJSRuntime js
 
 <div class="main-container text-center">
 
@@ -24,10 +25,19 @@
             @foreach (var exhibit in exhibits)
             {
                 <button type="button" @onclick="() => SelectExhibit(exhibit)"
-                        class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active-card" : "")">
-                    <div class="d-flex w-100 justify-content-between align-items-center">
-                        <span class="fw-bold">@exhibit.Artwork?.Title</span>
-                        <span class="badge rounded-pill bg-dark">@exhibit.Cost.ToString("N2") грн</span>
+                        class="list-group-item list-group-item-action @(selectedExhibit?.Id == exhibit.Id ? "active-card" : "")">
+                    <div class="row w-100 align-items-center">
+                        <div class="col-4 text-start">
+                            <b>@exhibit.Artwork?.Title</b>
+                        </div>
+
+                        <div class="col-4 text-center text-muted @(selectedExhibit?.Id == exhibit.Id ? "text-white" : "")">
+                            <small>📍 @exhibit.Funds?.Address</small>
+                        </div>
+
+                        <div class="col-4 text-end">
+                            <span class="badge rounded-pill bg-dark">@exhibit.Cost.ToString("N2") грн</span>
+                        </div>
                     </div>
                 </button>
             }
@@ -37,7 +47,9 @@
     <div class="d-flex justify-content-center gap-3">
         <button class="btn btn-success btn-lg px-5 shadow-sm" @onclick="Add">ДОДАТИ</button>
         <button class="btn btn-primary btn-lg px-5 shadow-sm" @onclick="Edit" disabled="@(selectedExhibit == null)">РЕДАГУВАТИ</button>
+        <button class="btn btn-danger btn-lg px-4 shadow-sm" @onclick="Delete" disabled="@(selectedExhibit == null)">ВИДАЛИТИ</button>
     </div>
+
 </div>
 
 <ExhibitForm Show="showModal"
@@ -113,6 +125,19 @@
         RefreshData();
     }
 
+    private async Task Delete()
+    {
+        if (selectedExhibit == null) return;
+
+        bool confirmed = await js.InvokeAsync<bool>("confirm", $"Видалити '{selectedExhibit.Artwork?.Title}'?");
+
+        if (confirmed)
+        {
+            await Service.DeleteExhibit(selectedExhibit.Id);
+            selectedExhibit = null; 
+            RefreshData(); 
+        }
+    }
     private void RefreshData()
     {
         exhibits = Service.GetExhibits();
@@ -162,8 +187,9 @@
         var funds = new Funds
         {
             Title = dto.Funds?.Title ?? "Фонд",
-            Address = "Черкаси, вул. Шевченка" 
+            Address = string.IsNullOrWhiteSpace(dto.FundAddress) ? "Не вказана" : dto.FundAddress
         };
+
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
