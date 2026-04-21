@@ -17,15 +17,6 @@
             }
         }
 
-        public string Address
-        {
-            get => _address;
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("Адреса не може бути порожньою");
-                _address = value;
-            }
-        }
+        public string Address { get; set; } = "Не вказана";
     }
 }

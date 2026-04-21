@@ -159,8 +159,11 @@
             Width = dto.Artwork.Width,
             Depth = dto.Artwork.Depth
         };
-        var funds = new Funds { Title = dto.Funds?.Title ?? "Фонд" };
-
+        var funds = new Funds
+        {
+            Title = dto.Funds?.Title ?? "Фонд",
+            Address = "Черкаси, вул. Шевченка" 
+        };
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
