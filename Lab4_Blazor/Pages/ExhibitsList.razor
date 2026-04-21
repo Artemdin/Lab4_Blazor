@@ -3,38 +3,44 @@
 @using Lab4_Blazor.DTOs
 @inject ExhibitionService Service
 
-<h3>Виставковий зал: @Service.Hall.HallName</h3>
+<div class="container text-center mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
 
-<div class="alert alert-info">
-    @Service.Hall.ToShortString()
-</div>
+            <h3 class="fw-bold mb-3" style="color: #2c3e50; border-bottom: 3px solid #3498db; display: inline-block;">
+                🏛️ @Service.Hall.HallName
+            </h3>
 
-<div class="list-group mb-3">
-    @if (exhibits == null || !exhibits.Any())
-    {
-        <p class="text-muted">Експонати ще не додані або завантажуються...</p>
-    }
-    else
-    {
-        @foreach (var exhibit in exhibits)
-        {
-            <button type="button"
-                    @onclick="() => SelectExhibit(exhibit)"
-                    class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active" : "")">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">@exhibit.Artwork?.Title</h5>
-                    <small>@exhibit.Cost.ToString("N2") грн</small>
-                </div>
-                <p class="mb-1">Фонд: @exhibit.Funds?.Title | Рік: @exhibit.Artwork?.CreationYear</p>
-                <small>Розміщення: @exhibit.Placement</small>
-            </button>
-        }
-    }
-</div>
+            <div class="alert alert-info shadow-sm mb-4">
+                @Service.Hall.ToShortString()
+            </div>
 
-<div class="mt-3">
-    <button class="btn btn-success" @onclick="Add">Додати</button>
-    <button class="btn btn-primary" @onclick="Edit" disabled="@(selectedExhibit == null)">Редагувати</button>
+            <div class="list-group shadow-sm mb-4">
+                @if (exhibits == null || !exhibits.Any())
+                {
+                    <div class="list-group-item py-5">
+                        <p class="text-muted mb-0">Експонати відсутні. Натисніть "Додати".</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var exhibit in exhibits)
+                    {
+                        <button type="button" @onclick="() => SelectExhibit(exhibit)"
+                                class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active" : "")">
+                            <b>@exhibit.Artwork?.Title</b> — @exhibit.Cost грн
+                        </button>
+                    }
+                }
+            </div>
+
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-success btn-lg px-5 shadow" @onclick="Add">ДОДАТИ</button>
+                <button class="btn btn-primary btn-lg px-5 shadow" @onclick="Edit" disabled="@(selectedExhibit == null)">РЕДАГУВАТИ</button>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <ExhibitForm Show="showModal"
@@ -50,23 +56,19 @@
     private string modalTitle = "";
     private ExhibitDTO editingDto = new();
 
-    // Тепер використовуємо асинхронну ініціалізацію
     protected override async Task OnInitializedAsync()
     {
-        await Service.LoadDataAsync(); // Чекаємо, поки дані підтягнуться з браузера
+        await Service.LoadDataAsync();
         RefreshData();
-        StateHasChanged();
     }
 
     private void RefreshData()
     {
         exhibits = Service.GetExhibits();
+        StateHasChanged();
     }
 
-    private void SelectExhibit(Exhibit exhibit)
-    {
-        selectedExhibit = exhibit;
-    }
+    private void SelectExhibit(Exhibit exhibit) => selectedExhibit = exhibit;
 
     private void Add()
     {
@@ -78,64 +80,53 @@
     private void Edit()
     {
         if (selectedExhibit == null) return;
-
         modalTitle = "Редагувати експонат";
-
         editingDto = new ExhibitDTO
         {
             Artwork = new()
             {
-                Title = selectedExhibit.Artwork.Title,
-                CreationYear = selectedExhibit.Artwork.CreationYear,
-                Height = selectedExhibit.Artwork.Height,
-                Width = selectedExhibit.Artwork.Width,
-                Depth = selectedExhibit.Artwork.Depth
+                Title = selectedExhibit.Artwork?.Title ?? "",
+                CreationYear = selectedExhibit.Artwork?.CreationYear ?? 0,
+                Height = selectedExhibit.Artwork?.Height ?? 1,
+                Width = selectedExhibit.Artwork?.Width ?? 1,
+                Depth = selectedExhibit.Artwork?.Depth ?? 1
             },
-            Funds = new() { Title = selectedExhibit.Funds.Title },
+            Funds = new() { Title = selectedExhibit.Funds?.Title ?? "" },
             Placement = selectedExhibit.Placement,
             Cost = selectedExhibit.Cost
         };
         showModal = true;
     }
 
-    // Робимо обробник збереження асинхронним
     private async Task HandleSave(ExhibitDTO dto)
     {
-        // додаємо перевірку на null, щоб не було помилок при створенні
         var artwork = new Artwork
         {
             Title = dto.Artwork.Title,
             CreationYear = dto.Artwork.CreationYear,
-            Height = dto.Artwork.Height > 0 ? dto.Artwork.Height : 1,
-            Width = dto.Artwork.Width > 0 ? dto.Artwork.Width : 1,
-            Depth = dto.Artwork.Depth > 0 ? dto.Artwork.Depth : 1
+            Height = dto.Artwork.Height,
+            Width = dto.Artwork.Width,
+            Depth = dto.Artwork.Depth
         };
         var funds = new Funds { Title = dto.Funds?.Title ?? "Фонд" };
 
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
-            int newId = (exhibits?.Count ?? 0) + 1;
-            newExhibit.Id = newId;
-            artwork.Id = newId;
-            funds.Id = newId;
+            newExhibit.Id = exhibits.Count + 1;
             await Service.SaveExhibit(newExhibit);
-        } 
+        }
         else if (selectedExhibit != null)
         {
             selectedExhibit.Artwork = artwork;
             selectedExhibit.Funds = funds;
             selectedExhibit.Placement = dto.Placement;
             selectedExhibit.Cost = dto.Cost;
-
             await Service.UpdateExhibit(selectedExhibit);
-        } 
-
+        }
 
         RefreshData();
-        showModal = false; 
+        showModal = false;
         selectedExhibit = null;
-        StateHasChanged(); 
     }
-
 }
