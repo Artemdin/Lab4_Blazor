@@ -44,7 +44,14 @@
                             <label>Вартість:</label>
                             <InputNumber @bind-Value="Model.Cost" class="form-control" />
                         </div>
-
+                        <div class="mb-3">
+                            <label class="form-label">Розміри (В x Ш x Г):</label>
+                            <div class="input-group">
+                                <InputNumber @bind-Value="Model.Artwork.Height" class="form-control" placeholder="Висота" />
+                                <InputNumber @bind-Value="Model.Artwork.Width" class="form-control" placeholder="Ширина" />
+                                <InputNumber @bind-Value="Model.Artwork.Depth" class="form-control" placeholder="Глибина" />
+                            </div>
+                        </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Зберегти і закрити</button>
                             <button type="button" class="btn btn-secondary" @onclick="Cancel">Скасувати</button>

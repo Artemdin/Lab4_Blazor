@@ -1,4 +1,4 @@
-﻿@page "/exhibits"
+﻿@page "/"
 @using Lab4_Blazor.Models
 @using Lab4_Blazor.DTOs
 @inject ExhibitionService Service
@@ -50,15 +50,16 @@
     private string modalTitle = "";
     private ExhibitDTO editingDto = new();
 
-    // Викликається автоматично при завантаженні сторінки
-    protected override void OnInitialized()
+    // Тепер використовуємо асинхронну ініціалізацію
+    protected override async Task OnInitializedAsync()
     {
+        await Service.LoadDataAsync(); // Чекаємо, поки дані підтягнуться з браузера
         RefreshData();
+        StateHasChanged();
     }
 
     private void RefreshData()
     {
-        // Отримуємо актуальні дані з SQLite
         exhibits = Service.GetExhibits();
     }
 
@@ -97,38 +98,44 @@
         showModal = true;
     }
 
-    private void HandleSave(ExhibitDTO dto)
+    // Робимо обробник збереження асинхронним
+    private async Task HandleSave(ExhibitDTO dto)
     {
-        // Створюємо об'єкти моделей на основі DTO
+        // додаємо перевірку на null, щоб не було помилок при створенні
         var artwork = new Artwork
         {
             Title = dto.Artwork.Title,
             CreationYear = dto.Artwork.CreationYear,
-            Height = dto.Artwork.Height,
-            Width = dto.Artwork.Width,
-            Depth = dto.Artwork.Depth
+            Height = dto.Artwork.Height > 0 ? dto.Artwork.Height : 1,
+            Width = dto.Artwork.Width > 0 ? dto.Artwork.Width : 1,
+            Depth = dto.Artwork.Depth > 0 ? dto.Artwork.Depth : 1
         };
-        var funds = new Funds { Title = dto.Funds.Title };
+        var funds = new Funds { Title = dto.Funds?.Title ?? "Фонд" };
 
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
-            Service.SaveExhibit(newExhibit);
-        }
+            int newId = (exhibits?.Count ?? 0) + 1;
+            newExhibit.Id = newId;
+            artwork.Id = newId;
+            funds.Id = newId;
+            await Service.SaveExhibit(newExhibit);
+        } 
         else if (selectedExhibit != null)
         {
-            // Оновлюємо існуючий об'єкт у базі
             selectedExhibit.Artwork = artwork;
             selectedExhibit.Funds = funds;
             selectedExhibit.Placement = dto.Placement;
             selectedExhibit.Cost = dto.Cost;
 
-            // Викликаємо збереження змін у контексті БД
-            Service.UpdateExhibit(selectedExhibit);
-        }
+            await Service.UpdateExhibit(selectedExhibit);
+        } 
 
-        RefreshData(); // Оновлюємо список на екрані
-        showModal = false;
+
+        RefreshData();
+        showModal = false; 
         selectedExhibit = null;
+        StateHasChanged(); 
     }
+
 }

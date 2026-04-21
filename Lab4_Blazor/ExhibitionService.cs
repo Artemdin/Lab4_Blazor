@@ -1,35 +1,83 @@
-﻿using Lab4_Blazor.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Lab4_Blazor.Models;
+using Microsoft.JSInterop;
 
 namespace Lab4_Blazor
 {
     public class ExhibitionService
     {
-        private readonly AppDbContext _context;
+        private readonly IJSRuntime _js;
+        private const string StorageKey = "exhibition_data";
+
         public ExhibitionHall Hall { get; private set; } = new ExhibitionHall { HallName = "Головний зал" };
-        public ExhibitionService(AppDbContext context)
+        private List<Exhibit> _exhibits = new();
+
+        public ExhibitionService(IJSRuntime js)
         {
-            _context = context;
-            // Створюємо базу, якщо її ще немає
-            _context.Database.EnsureCreated();
+            _js = js;
         }
 
-        public List<Exhibit> GetExhibits()
+        public async Task LoadDataAsync()
         {
-            return _context.Exhibits
-                .Include(e => e.Artwork)
-                .Include(e => e.Funds)
-                .ToList();
+            try
+            {
+                var json = await _js.InvokeAsync<string>("localStorage.getItem", StorageKey);
+
+                if (!string.IsNullOrEmpty(json))
+                {
+                    // Створюємо опції, ідентичні тим, що при збереженні
+                    var options = new JsonSerializerOptions
+                    {
+                        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                        PropertyNameCaseInsensitive = true // Щоб не переживати за великі/малі літери
+                    };
+
+                    var loaded = JsonSerializer.Deserialize<List<Exhibit>>(json, options);
+
+                    if (loaded != null)
+                    {
+                        _exhibits = loaded;
+                        Console.WriteLine($"Завантажено {_exhibits.Count} експонатів.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка завантаження: {ex.Message}");
+            }
         }
-        public void UpdateExhibit(Exhibit exhibit)
+
+        public List<Exhibit> GetExhibits() => _exhibits;
+
+        public async Task SaveExhibit(Exhibit exhibit)
         {
-            _context.Exhibits.Update(exhibit);
-            _context.SaveChanges();
+            _exhibits.Add(exhibit);
+            await SaveToStorage();
         }
-        public void SaveExhibit(Exhibit exhibit)
+
+        public async Task UpdateExhibit(Exhibit exhibit)
         {
-            _context.Exhibits.Add(exhibit);
-            _context.SaveChanges();
+            await SaveToStorage();
+        }
+
+        private async Task SaveToStorage()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true
+                };
+
+                var json = JsonSerializer.Serialize(_exhibits, options);
+                await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Критична помилка JSON: {ex.Message}");
+            }
         }
     }
 }
