@@ -1,49 +1,26 @@
-﻿using System.Text.Json;
+﻿using Blazored.LocalStorage;
 using Lab4_Blazor.Models;
-using Microsoft.JSInterop;
 
-namespace Lab4_Blazor
+namespace Lab4_Blazor.Services
 {
     public class ExhibitionService
     {
-        private readonly IJSRuntime _js;
-        private const string StorageKey = "exhibition_data";
-
-        public ExhibitionHall Hall { get; private set; } = new ExhibitionHall { HallName = "Головний зал" };
+        private readonly ILocalStorageService _localStorage;
         private List<Exhibit> _exhibits = new();
+        public ExhibitionHall Hall { get; set; } = new ExhibitionHall { HallName = "Головний зал" };
 
-        public ExhibitionService(IJSRuntime js)
+        public ExhibitionService(ILocalStorageService localStorage)
         {
-            _js = js;
+            _localStorage = localStorage;
         }
 
         public async Task LoadDataAsync()
         {
-            try
+            // Просто читаємо. Якщо пусто — поверне null, і ми залишимо пустий список.
+            var saved = await _localStorage.GetItemAsync<List<Exhibit>>("museum_data");
+            if (saved != null)
             {
-                var json = await _js.InvokeAsync<string>("localStorage.getItem", StorageKey);
-
-                if (!string.IsNullOrEmpty(json))
-                {
-                    // Створюємо опції, ідентичні тим, що при збереженні
-                    var options = new JsonSerializerOptions
-                    {
-                        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
-                        PropertyNameCaseInsensitive = true // Щоб не переживати за великі/малі літери
-                    };
-
-                    var loaded = JsonSerializer.Deserialize<List<Exhibit>>(json, options);
-
-                    if (loaded != null)
-                    {
-                        _exhibits = loaded;
-                        Console.WriteLine($"Завантажено {_exhibits.Count} експонатів.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Помилка завантаження: {ex.Message}");
+                _exhibits = saved;
             }
         }
 
@@ -52,31 +29,16 @@ namespace Lab4_Blazor
         public async Task SaveExhibit(Exhibit exhibit)
         {
             _exhibits.Add(exhibit);
-            await SaveToStorage();
+            await _localStorage.SetItemAsync("museum_data", _exhibits);
         }
 
         public async Task UpdateExhibit(Exhibit exhibit)
         {
-            await SaveToStorage();
-        }
-
-        private async Task SaveToStorage()
-        {
-            try
+            var index = _exhibits.FindIndex(e => e.Id == exhibit.Id);
+            if (index != -1)
             {
-                var options = new JsonSerializerOptions
-                {
-                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true
-                };
-
-                var json = JsonSerializer.Serialize(_exhibits, options);
-                await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Критична помилка JSON: {ex.Message}");
+                _exhibits[index] = exhibit;
+                await _localStorage.SetItemAsync("museum_data", _exhibits);
             }
         }
     }

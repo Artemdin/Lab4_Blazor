@@ -1,45 +1,42 @@
 ﻿@page "/"
 @using Lab4_Blazor.Models
 @using Lab4_Blazor.DTOs
+@using Lab4_Blazor.Services
 @inject ExhibitionService Service
 
-<div class="container text-center mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
+<div class="main-container text-center">
 
-            <h3 class="fw-bold mb-3" style="color: #2c3e50; border-bottom: 3px solid #3498db; display: inline-block;">
-                🏛️ @Service.Hall.HallName
-            </h3>
+    <h3 class="museum-header mb-4">🏛️ @Service.Hall.HallName</h3>
 
-            <div class="alert alert-info shadow-sm mb-4">
-                @Service.Hall.ToShortString()
+    <div class="alert alert-info shadow-sm mb-4">
+        @Service.Hall.ToShortString()
+    </div>
+
+    <div class="list-group shadow-sm mb-4">
+        @if (exhibits == null || !exhibits.Any())
+        {
+            <div class="list-group-item py-5">
+                <p class="text-muted mb-0">Експонати відсутні. Натисніть "Додати", щоб розпочати.</p>
             </div>
-
-            <div class="list-group shadow-sm mb-4">
-                @if (exhibits == null || !exhibits.Any())
-                {
-                    <div class="list-group-item py-5">
-                        <p class="text-muted mb-0">Експонати відсутні. Натисніть "Додати".</p>
+        }
+        else
+        {
+            @foreach (var exhibit in exhibits)
+            {
+                <button type="button" @onclick="() => SelectExhibit(exhibit)"
+                        class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active-card" : "")">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <span class="fw-bold">@exhibit.Artwork?.Title</span>
+                        <span class="badge rounded-pill bg-dark">@exhibit.Cost.ToString("N2") грн</span>
                     </div>
-                }
-                else
-                {
-                    @foreach (var exhibit in exhibits)
-                    {
-                        <button type="button" @onclick="() => SelectExhibit(exhibit)"
-                                class="list-group-item list-group-item-action @(selectedExhibit == exhibit ? "active" : "")">
-                            <b>@exhibit.Artwork?.Title</b> — @exhibit.Cost грн
-                        </button>
-                    }
-                }
-            </div>
+                </button>
+            }
+        }
+    </div>
 
-            <div class="d-flex justify-content-center gap-3">
-                <button class="btn btn-success btn-lg px-5 shadow" @onclick="Add">ДОДАТИ</button>
-                <button class="btn btn-primary btn-lg px-5 shadow" @onclick="Edit" disabled="@(selectedExhibit == null)">РЕДАГУВАТИ</button>
-            </div>
-
-        </div>
+    <div class="d-flex justify-content-center gap-3">
+        <button class="btn btn-success btn-lg px-5 shadow-sm" @onclick="Add">ДОДАТИ</button>
+        <button class="btn btn-primary btn-lg px-5 shadow-sm" @onclick="Edit" disabled="@(selectedExhibit == null)">РЕДАГУВАТИ</button>
     </div>
 </div>
 
@@ -48,6 +45,60 @@
              Model="editingDto"
              OnSave="HandleSave"
              OnCancel="() => showModal = false" />
+
+<style>
+    body {
+        background-color: #f0f2f5;
+    }
+
+    .main-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .museum-header {
+        color: #1a2a6c;
+        font-weight: 800;
+        text-transform: uppercase;
+        border-bottom: 4px solid #f27121;
+        display: inline-block;
+        padding-bottom: 10px;
+    }
+
+    .list-group-item {
+        border: 1px solid #eee !important;
+        margin-bottom: 10px;
+        border-radius: 12px !important;
+        transition: 0.3s;
+        text-align: left;
+    }
+
+        .list-group-item:hover {
+            background-color: #fffaf0;
+            transform: scale(1.01);
+        }
+
+    .active-card {
+        background: linear-gradient(to right, #1a2a6c, #b21f1f) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+        .active-card span {
+            color: white !important;
+        }
+
+    .btn-lg {
+        border-radius: 50px;
+        padding: 12px 35px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+</style>
 
 @code {
     private List<Exhibit> exhibits = new();
@@ -113,7 +164,8 @@
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
-            newExhibit.Id = exhibits.Count + 1;
+            newExhibit.Id = (exhibits != null && exhibits.Any() ? exhibits.Max(e => e.Id) : 0) + 1;
+
             await Service.SaveExhibit(newExhibit);
         }
         else if (selectedExhibit != null)
@@ -125,8 +177,11 @@
             await Service.UpdateExhibit(selectedExhibit);
         }
 
-        RefreshData();
+        exhibits = Service.GetExhibits();
+
         showModal = false;
         selectedExhibit = null;
+
+        StateHasChanged();
     }
 }
