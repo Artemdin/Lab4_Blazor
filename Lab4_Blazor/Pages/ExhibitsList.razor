@@ -176,6 +176,26 @@
 
     private async Task HandleSave(ExhibitDTO dto)
     {
+
+        if (dto.Artwork.CreationYear > 2026 || dto.Artwork.CreationYear < 0)
+        {
+            await js.InvokeVoidAsync("alert", "Помилка: Рік створення не може бути в майбутньому або від'ємним!");
+            return;
+        }
+
+        if (dto.Cost < 0)
+        {
+            await js.InvokeVoidAsync("alert", "Помилка: Ціна не може бути менше нуля!");
+            return;
+        }
+
+        if (dto.Artwork.Height <= 0 || dto.Artwork.Width <= 0 || dto.Artwork.Depth <= 0)
+        {
+            await js.InvokeVoidAsync("alert", "Помилка: Розміри (висота, ширина, глибина) мають бути більшими за 0!");
+            return;
+        }
+
+
         var artwork = new Artwork
         {
             Title = dto.Artwork.Title,
@@ -184,6 +204,7 @@
             Width = dto.Artwork.Width,
             Depth = dto.Artwork.Depth
         };
+
         var funds = new Funds
         {
             Title = dto.Funds?.Title ?? "Фонд",
@@ -194,7 +215,6 @@
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
             newExhibit.Id = (exhibits != null && exhibits.Any() ? exhibits.Max(e => e.Id) : 0) + 1;
-
             await Service.SaveExhibit(newExhibit);
         }
         else if (selectedExhibit != null)
@@ -207,10 +227,8 @@
         }
 
         exhibits = Service.GetExhibits();
-
         showModal = false;
         selectedExhibit = null;
-
         StateHasChanged();
     }
 }
