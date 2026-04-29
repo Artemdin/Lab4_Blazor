@@ -7,22 +7,36 @@
 
 <div class="main-container text-center">
 
-    <h3 class="museum-header mb-4">🏛️ @Service.Hall.HallName</h3>
-
-    <div class="alert alert-info shadow-sm mb-4">
-        @Service.Hall.ToShortString()
+    <div class="hall-management mb-4 p-3 border rounded shadow-sm bg-light">
+        <h5 class="mb-3">🏛️ Керування залами</h5>
+        <div class="d-flex gap-2 justify-content-center">
+            <select class="form-select w-50" @onchange="OnHallChanged">
+                @foreach (var hall in Service.Halls)
+                {
+                    <option value="@hall.HallName" selected="@(Service.SelectedHall?.HallName == hall.HallName)">🏛️ @hall.HallName</option>
+                }
+            </select>
+            <button class="btn btn-outline-primary" @onclick="AddNewHall">+ Новий зал</button>
+        </div>
     </div>
 
+    <h3 class="museum-header mb-4">🏛️ @Service.SelectedHall?.HallName</h3>
+
+    <div class="alert alert-info shadow-sm mb-4">
+        @Service.SelectedHall?.ToShortString()
+    </div>
+
+    @* --- СПИСОК ЕКСПОНАТІВ --- *@
     <div class="list-group shadow-sm mb-4">
-        @if (exhibits == null || !exhibits.Any())
+        @if (Service.SelectedHall?.Exhibits == null || !Service.SelectedHall.Exhibits.Any())
         {
             <div class="list-group-item py-5">
-                <p class="text-muted mb-0">Експонати відсутні. Натисніть "Додати", щоб розпочати.</p>
+                <p class="text-muted mb-0">У цьому залі порожньо. Натисніть "Додати".</p>
             </div>
         }
         else
         {
-            @foreach (var exhibit in exhibits)
+            @foreach (var exhibit in Service.SelectedHall.Exhibits)
             {
                 <button type="button" @onclick="() => SelectExhibit(exhibit)"
                         class="list-group-item list-group-item-action @(selectedExhibit?.Id == exhibit.Id ? "active-card" : "")">
@@ -30,11 +44,9 @@
                         <div class="col-4 text-start">
                             <b>@exhibit.Artwork?.Title</b>
                         </div>
-
                         <div class="col-4 text-center text-muted @(selectedExhibit?.Id == exhibit.Id ? "text-white" : "")">
                             <small>📍 @exhibit.Funds?.Address</small>
                         </div>
-
                         <div class="col-4 text-end">
                             <span class="badge rounded-pill bg-dark">@exhibit.Cost.ToString("N2") грн</span>
                         </div>
@@ -49,71 +61,11 @@
         <button class="btn btn-primary btn-lg px-5 shadow-sm" @onclick="Edit" disabled="@(selectedExhibit == null)">РЕДАГУВАТИ</button>
         <button class="btn btn-danger btn-lg px-4 shadow-sm" @onclick="Delete" disabled="@(selectedExhibit == null)">ВИДАЛИТИ</button>
     </div>
-
 </div>
 
-<ExhibitForm Show="showModal"
-             Title="@modalTitle"
-             Model="editingDto"
-             OnSave="HandleSave"
-             OnCancel="() => showModal = false" />
-
-<style>
-    body {
-        background-color: #f0f2f5;
-    }
-
-    .main-container {
-        max-width: 800px;
-        margin: 40px auto;
-        padding: 40px;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-
-    .museum-header {
-        color: #1a2a6c;
-        font-weight: 800;
-        text-transform: uppercase;
-        border-bottom: 4px solid #f27121;
-        display: inline-block;
-        padding-bottom: 10px;
-    }
-
-    .list-group-item {
-        border: 1px solid #eee !important;
-        margin-bottom: 10px;
-        border-radius: 12px !important;
-        transition: 0.3s;
-        text-align: left;
-    }
-
-        .list-group-item:hover {
-            background-color: #fffaf0;
-            transform: scale(1.01);
-        }
-
-    .active-card {
-        background: linear-gradient(to right, #1a2a6c, #b21f1f) !important;
-        color: white !important;
-        border: none !important;
-    }
-
-        .active-card span {
-            color: white !important;
-        }
-
-    .btn-lg {
-        border-radius: 50px;
-        padding: 12px 35px;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-</style>
+<ExhibitForm Show="showModal" Title="@modalTitle" Model="editingDto" OnSave="HandleSave" OnCancel="() => showModal = false" />
 
 @code {
-    private List<Exhibit> exhibits = new();
     private Exhibit? selectedExhibit;
     private bool showModal = false;
     private string modalTitle = "";
@@ -122,35 +74,16 @@
     protected override async Task OnInitializedAsync()
     {
         await Service.LoadDataAsync();
-        RefreshData();
-    }
-
-    private async Task Delete()
-    {
-        if (selectedExhibit == null) return;
-
-        bool confirmed = await js.InvokeAsync<bool>("confirm", $"Видалити '{selectedExhibit.Artwork?.Title}'?");
-
-        if (confirmed)
-        {
-            await Service.DeleteExhibit(selectedExhibit.Id);
-            selectedExhibit = null; 
-            RefreshData(); 
-        }
-    }
-    private void RefreshData()
-    {
-        exhibits = Service.GetExhibits();
+        // Примусово кажемо сторінці оновитися після того, як дані прийшли з LocalStorage
         StateHasChanged();
     }
 
-    private void SelectExhibit(Exhibit exhibit) => selectedExhibit = exhibit;
-
-    private void Add()
+    private void OnHallChanged(ChangeEventArgs e)
     {
-        modalTitle = "Додати новий експонат";
-        editingDto = new ExhibitDTO();
-        showModal = true;
+        var hallName = e.Value?.ToString();
+        Service.SelectedHall = Service.Halls.FirstOrDefault(h => h.HallName == hallName);
+        selectedExhibit = null;
+        StateHasChanged();
     }
 
     private void Edit()
@@ -168,34 +101,52 @@
                 Depth = selectedExhibit.Artwork?.Depth ?? 1
             },
             Funds = new() { Title = selectedExhibit.Funds?.Title ?? "" },
+            FundAddress = selectedExhibit.Funds?.Address ?? "",
             Placement = selectedExhibit.Placement,
             Cost = selectedExhibit.Cost
         };
         showModal = true;
     }
 
+    private async Task AddNewHall()
+    {
+        string name = await js.InvokeAsync<string>("prompt", "Введіть назву нового залу:");
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            if (Service.Halls.Any(h => h.HallName == name))
+            {
+                await js.InvokeVoidAsync("alert", "Зал з такою назвою вже існує!");
+                return;
+            }
+            var newHall = new ExhibitionHall { HallName = name };
+            Service.Halls.Add(newHall);
+            Service.SelectedHall = newHall;
+            await Service.SaveAll();
+        }
+    }
+
     private async Task HandleSave(ExhibitDTO dto)
     {
-
-        if (dto.Artwork.CreationYear > 2026 || dto.Artwork.CreationYear < 0)
+        // --- ПЕРЕВІРКИ ---
+        if (string.IsNullOrWhiteSpace(dto.Artwork.Title) || string.IsNullOrWhiteSpace(dto.Funds.Title))
         {
-            await js.InvokeVoidAsync("alert", "Помилка: Рік створення не може бути в майбутньому або від'ємним!");
+            await js.InvokeVoidAsync("alert", "Помилка: Назва експонату та фонду не можуть бути порожніми!");
             return;
         }
 
-        if (dto.Cost < 0)
+        if (dto.Artwork.CreationYear > 2026 || dto.Artwork.CreationYear < 0 || dto.Cost < 0)
         {
-            await js.InvokeVoidAsync("alert", "Помилка: Ціна не може бути менше нуля!");
+            await js.InvokeVoidAsync("alert", "Помилка: Перевірте рік (не більше 2026) та ціну (не менше 0)!");
             return;
         }
 
         if (dto.Artwork.Height <= 0 || dto.Artwork.Width <= 0 || dto.Artwork.Depth <= 0)
         {
-            await js.InvokeVoidAsync("alert", "Помилка: Розміри (висота, ширина, глибина) мають бути більшими за 0!");
+            await js.InvokeVoidAsync("alert", "Помилка: Розміри мають бути більшими за 0!");
             return;
         }
 
-
+        // --- ЛОГІКА ЗБЕРЕЖЕННЯ ---
         var artwork = new Artwork
         {
             Title = dto.Artwork.Title,
@@ -207,15 +158,17 @@
 
         var funds = new Funds
         {
-            Title = dto.Funds?.Title ?? "Фонд",
+            Title = dto.Funds.Title,
             Address = string.IsNullOrWhiteSpace(dto.FundAddress) ? "Не вказана" : dto.FundAddress
         };
 
         if (modalTitle.Contains("Додати"))
         {
             var newExhibit = new Exhibit(artwork, funds, dto.Placement, dto.Cost);
-            newExhibit.Id = (exhibits != null && exhibits.Any() ? exhibits.Max(e => e.Id) : 0) + 1;
-            await Service.SaveExhibit(newExhibit);
+            int maxId = Service.Halls.SelectMany(h => h.Exhibits).Any()
+                        ? Service.Halls.SelectMany(h => h.Exhibits).Max(e => e.Id) : 0;
+            newExhibit.Id = maxId + 1;
+            Service.SelectedHall?.AddExhibit(newExhibit);
         }
         else if (selectedExhibit != null)
         {
@@ -223,12 +176,26 @@
             selectedExhibit.Funds = funds;
             selectedExhibit.Placement = dto.Placement;
             selectedExhibit.Cost = dto.Cost;
-            await Service.UpdateExhibit(selectedExhibit);
         }
 
-        exhibits = Service.GetExhibits();
+        await Service.SaveAll();
         showModal = false;
         selectedExhibit = null;
         StateHasChanged();
+    }
+
+    private void SelectExhibit(Exhibit exhibit) => selectedExhibit = exhibit;
+    private void Add() { modalTitle = "Додати новий експонат"; editingDto = new ExhibitDTO(); showModal = true; }
+
+    private async Task Delete()
+    {
+        if (selectedExhibit == null) return;
+        if (await js.InvokeAsync<bool>("confirm", $"Видалити '{selectedExhibit.Artwork.Title}'?"))
+        {
+            Service.SelectedHall?.Exhibits.Remove(selectedExhibit);
+            await Service.SaveAll();
+            selectedExhibit = null;
+            StateHasChanged();
+        }
     }
 }

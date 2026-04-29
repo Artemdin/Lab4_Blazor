@@ -9,5 +9,6 @@ namespace Lab4_Blazor.DTOs
         public Placement Placement { get; set; } = Placement.Wall; //  за замовчуванням
         public decimal Cost { get; set; }
         public string FundAddress { get; set; } = "";
+
     }
 }
